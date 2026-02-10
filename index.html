@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>kejun@github:~$</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-color: #0d1117;
+            --terminal-bg: #161b22;
+            --text-primary: #e6edf3;
+            --text-secondary: #7d8590;
+            --accent-green: #238636;
+            --accent-blue: #58a6ff;
+            --accent-yellow: #d29922;
+            --accent-red: #f85149;
+            --accent-purple: #a371f7;
+            --accent-cyan: #39c5cf;
+            --border-color: #30363d;
+        }
+
+        body {
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Terminal Window */
+        .terminal {
+            max-width: 1200px;
+            margin: 20px auto;
+            background: var(--terminal-bg);
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        /* Terminal Header */
+        .terminal-header {
+            background: linear-gradient(180deg, #2d333b 0%, #1c2128 100%);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .terminal-btn {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-close { background: #ff5f56; }
+        .btn-minimize { background: #ffbd2e; }
+        .btn-maximize { background: #27c93f; }
+
+        .terminal-title {
+            flex: 1;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        /* Terminal Body */
+        .terminal-body {
+            padding: 20px;
+            min-height: 600px;
+        }
+
+        /* ASCII Art */
+        .ascii-art {
+            color: var(--accent-green);
+            font-size: 11px;
+            line-height: 1.2;
+            margin-bottom: 20px;
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        /* Command Line */
+        .command-line {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .prompt {
+            color: var(--accent-green);
+            margin-right: 10px;
+            white-space: nowrap;
+        }
+
+        .command {
+            color: var(--text-primary);
+        }
+
+        .cursor {
+            display: inline-block;
+            width: 10px;
+            height: 20px;
+            background: var(--accent-green);
+            animation: blink 1s infinite;
+            vertical-align: middle;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        /* Output Sections */
+        .output {
+            margin: 20px 0;
+            padding-left: 20px;
+        }
+
+        .section-title {
+            color: var(--accent-blue);
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title::before {
+            content: '▶';
+            color: var(--accent-green);
+        }
+
+        /* Info Cards */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .info-card {
+            background: rgba(22, 27, 34, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .info-card:hover {
+            border-color: var(--accent-blue);
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            color: var(--accent-yellow);
+        }
+
+        .card-header .icon {
+            font-size: 20px;
+        }
+
+        .card-content {
+            color: var(--text-secondary);
+        }
+
+        .card-content strong {
+            color: var(--text-primary);
+        }
+
+        /* Stats */
+        .stats-row {
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-value {
+            color: var(--accent-green);
+            font-weight: bold;
+            font-size: 24px;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* Repository List */
+        .repo-list {
+            list-style: none;
+        }
+
+        .repo-item {
+            padding: 15px;
+            border-left: 3px solid var(--border-color);
+            margin-bottom: 10px;
+            background: rgba(22, 27, 34, 0.5);
+            transition: all 0.3s ease;
+        }
+
+        .repo-item:hover {
+            border-left-color: var(--accent-green);
+            background: rgba(35, 134, 54, 0.1);
+        }
+
+        .repo-name {
+            color: var(--accent-blue);
+            font-weight: bold;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .repo-name:hover {
+            text-decoration: underline;
+        }
+
+        .repo-desc {
+            color: var(--text-secondary);
+            margin-top: 5px;
+            font-size: 14px;
+        }
+
+        .repo-stats {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        .repo-stats span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Skills */
+        .skills-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .skill-tag {
+            background: rgba(88, 166, 255, 0.1);
+            color: var(--accent-blue);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            border: 1px solid rgba(88, 166, 255, 0.3);
+        }
+
+        /* Links */
+        .link-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .link-item {
+            color: var(--accent-cyan);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .link-item:hover {
+            background: rgba(57, 197, 207, 0.1);
+            border-color: var(--accent-cyan);
+        }
+
+        /* Typing Effect */
+        .typing-text {
+            overflow: hidden;
+            white-space: nowrap;
+            animation: typing 3s steps(40, end);
+        }
+
+        @keyframes typing {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+
+        /* Command Menu */
+        .command-menu {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--terminal-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 20px;
+            display: flex;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        .menu-btn {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.3s ease;
+        }
+
+        .menu-btn:hover {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-color);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .terminal {
+                margin: 10px;
+            }
+            
+            .ascii-art {
+                font-size: 8px;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .command-menu {
+                flex-wrap: wrap;
+                width: 90%;
+                justify-content: center;
+            }
+        }
+
+        /* Hidden sections */
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Progress Bar */
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--border-color);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 5px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-green), var(--accent-blue));
+            border-radius: 3px;
+            transition: width 1s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="terminal">
+        <div class="terminal-header">
+            <div class="terminal-btn btn-close"></div>
+            <div class="terminal-btn btn-minimize"></div>
+            <div class="terminal-btn btn-maximize"></div>
+            <div class="terminal-title">kejun@github: ~ (zsh)</div>
+        </div>
+        
+        <div class="terminal-body">
+            <!-- ASCII Art -->
+            <pre class="ascii-art">
+ ██╗  ██╗███████╗     ██╗██╗   ██╗███╗   ██╗
+ ██║ ██╔╝██╔════╝     ██║██║   ██║████╗  ██║
+ █████╔╝ █████╗       ██║██║   ██║██╔██╗ ██║
+ ██╔═██╗ ██╔══╝  ██   ██║██║   ██║██║╚██╗██║
+ ██║  ██╗███████╗╚█████╔╝╚██████╔╝██║ ╚████║
+ ╚═╝  ╚═╝╚══════╝ ╚════╝  ╚═════╝ ╚═╝  ╚═══╝
+            </pre>
+
+            <!-- Welcome Message -->
+            <div class="command-line">
+                <span class="prompt">➜</span>
+                <span class="command">whoami<span class="cursor"></span></span>
+            </div>
+
+            <div class="output">
+                <p style="color: var(--accent-cyan); font-size: 18px; margin-bottom: 10px;">
+                    👋 Hi, I'm <strong style="color: var(--text-primary);">克军 (kejun)</strong>
+                </p>
+                <p style="color: var(--text-secondary);">
+                    Backend Developer | Database Enthusiast | Open Source Contributor
+                </p>
+                <p style="color: var(--text-secondary); margin-top: 10px;">
+                    📍 Beijing, China | Building <span style="color: var(--accent-green);">seekdb</span> & <span style="color: var(--accent-blue);">seekdb-js</span>
+                </p>
+            </div>
+
+            <!-- Command Navigation -->
+            <div class="command-line" style="margin-top: 30px;">
+                <span class="prompt">➜</span>
+                <span class="command">ls -la sections/</span>
+            </div>
+
+            <div class="output">
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <button class="menu-btn" onclick="showSection('about')">about/</button>
+                    <button class="menu-btn" onclick="showSection('projects')">projects/</button>
+                    <button class="menu-btn" onclick="showSection('skills')">skills/</button>
+                    <button class="menu-btn" onclick="showSection('stats')">stats/</button>
+                    <button class="menu-btn" onclick="showSection('contact')">contact/</button>
+                </div>
+            </div>
+
+            <!-- About Section -->
+            <div id="about" class="section active">
+                <div class="command-line">
+                    <span class="prompt">➜</span>
+                    <span class="command">cat about.md</span>
+                </div>
+                <div class="output">
+                    <div class="info-grid">
+                        <div class="info-card">
+                            <div class="card-header">
+                                <span class="icon">💼</span>
+                                <span>Work</span>
+                            </div>
+                            <div class="card-content">
+                                <p>Building <strong>seekdb</strong> - The AI-Native Search Database</p>
+                                <p style="margin-top: 10px;">Unifying vector, text, structured and semi-structured data</p>
+                            </div>
+                        </div>
+                        <div class="info-card">
+                            <div class="card-header">
+                                <span class="icon">🎯</span>
+                                <span>Focus</span>
+                            </div>
+                            <div class="card-content">
+                                <p>• Database Systems</p>
+                                <p>• Vector Search</p>
+                                <p>• AI Infrastructure</p>
+                                <p>• JavaScript/TypeScript</p>
+                            </div>
+                        </div>
+                        <div class="info-card">
+                            <div class="card-header">
+                                <span class="icon">🌟</span>
+                                <span>Highlights</span>
+                            </div>
+                            <div class="card-content">
+                                <p>• Creator of <strong>Do</strong> (291⭐)</p>
+                                <p>• Contributor to <strong>OceanBase</strong></p>
+                                <p>• Open source enthusiast since 2010</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Projects Section -->
+            <div id="projects" class="section">
+                <div class="command-line">
+                    <span class="prompt">➜</span>
+                    <span class="command">gh repo list --limit 10</span>
+                </div>
+                <div class="output">
+                    <ul class="repo-list">
+                        <li class="repo-item">
+                            <a href="https://github.com/kejun/seekdb" class="repo-name" target="_blank">
+                                🗄️ seekdb
+                            </a>
+                            <p class="repo-desc">The AI-Native Search Database. Unifies vector, text, structured and semi-structured data in a single engine</p>
+                            <div class="repo-stats">
+                                <span>⚡ C++</span>
+                                <span>🔧 Apache-2.0</span>
+                            </div>
+                        </li>
+                        <li class="repo-item">
+                            <a href="https://github.com/kejun/seekdb-js" class="repo-name" target="_blank">
+                                📦 seekdb-js
+                            </a>
+                            <p class="repo-desc">The JavaScript/TypeScript SDK for seekdb, supporting both seekdb Server mode and OceanBase mode</p>
+                            <div class="repo-stats">
+                                <span>📘 TypeScript</span>
+                                <span>🔧 Apache-2.0</span>
+                            </div>
+                        </li>
+                        <li class="repo-item">
+                            <a href="https://github.com/kejun/Do" class="repo-name" target="_blank">
+                                ⚡ Do
+                            </a>
+                            <p class="repo-desc">轻量级文件加载和依赖管理解决方案</p>
+                            <div class="repo-stats">
+                                <span>⭐ 291 stars</span>
+                                <span>🍴 71 forks</span>
+                                <span>🟨 JavaScript</span>
+                            </div>
+                        </li>
+                        <li class="repo-item">
+                            <a href="https://github.com/kejun/mcp-oceanbase" class="repo-name" target="_blank">
+                                🔌 mcp-oceanbase
+                            </a>
+                            <p class="repo-desc">MCP Server for OceanBase database and its tools</p>
+                            <div class="repo-stats">
+                                <span>🔧 Apache-2.0</span>
+                            </div>
+                        </li>
+                        <li class="repo-item">
+                            <a href="https://github.com/kejun/image-search" class="repo-name" target="_blank">
+                                🖼️ image-search
+                            </a>
+                            <p class="repo-desc">Image search application built with the vector capabilities of OceanBase</p>
+                            <div class="repo-stats">
+                                <span>🔍 Vector Search</span>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Skills Section -->
+            <div id="skills" class="section">
+                <div class="command-line">
+                    <span class="prompt">➜</span>
+                    <span class="command">cat skills.json</span>
+                </div>
+                <div class="output">
+                    <div class="info-card" style="margin-bottom: 20px;">
+                        <div class="card-header">
+                            <span class="icon">💻</span>
+                            <span>Languages</span>
+                        </div>
+                        <div class="skills-container">
+                            <span class="skill-tag">JavaScript</span>
+                            <span class="skill-tag">TypeScript</span>
+                            <span class="skill-tag">C++</span>
+                            <span class="skill-tag">Python</span>
+                            <span class="skill-tag">SQL</span>
+                        </div>
+                    </div>
+
+                    <div class="info-card" style="margin-bottom: 20px;">
+                        <div class="card-header">
+                            <span class="icon">🗄️</span>
+                            <span>Database & Search</span>
+                        </div>
+                        <div class="skills-container">
+                            <span class="skill-tag">OceanBase</span>
+                            <span class="skill-tag">seekdb</span>
+                            <span class="skill-tag">Vector Search</span>
+                            <span class="skill-tag">Hybrid Search</span>
+                            <span class="skill-tag">RAG</span>
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <div class="card-header">
+                            <span class="icon">🛠️</span>
+                            <span>Tools & Frameworks</span>
+                        </div>
+                        <div class="skills-container">
+                            <span class="skill-tag">Node.js</span>
+                            <span class="skill-tag">React</span>
+                            <span class="skill-tag">LangChain</span>
+                            <span class="skill-tag">MCP</span>
+                            <span class="skill-tag">Git</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Section -->
+            <div id="stats" class="section">
+                <div class="command-line">
+                    <span class="prompt">➜</span>
+                    <span class="command">gh status</span>
+                </div>
+                <div class="output">
+                    <div class="stats-row">
+                        <div class="stat-item">
+                            <span class="stat-value">45</span>
+                            <span class="stat-label">Public Repos</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value">75</span>
+                            <span class="stat-label">Gists</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value">500+</span>
+                            <span class="stat-label">Total Stars</span>
+                        </div>
+                    </div>
+
+                    <div class="info-card" style="margin-top: 30px;">
+                        <div class="card-header">
+                            <span class="icon">📊</span>
+                            <span>GitHub Stats</span>
+                        </div>
+                        <div style="margin-top: 20px;">
+                            <div style="margin-bottom: 15px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>JavaScript</span>
+                                    <span style="color: var(--accent-green);">45%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 45%;"></div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>TypeScript</span>
+                                    <span style="color: var(--accent-blue);">25%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 25%;"></div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 15px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>C++</span>
+                                    <span style="color: var(--accent-yellow);">20%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 20%;"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>Others</span>
+                                    <span style="color: var(--accent-purple);">10%</span>
+                                </div>
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 10%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Section -->
+            <div id="contact" class="section">
+                <div class="command-line">
+                    <span class="prompt">➜</span>
+                    <span class="command">cat contact.txt</span>
+                </div>
+                <div class="output">
+                    <div class="info-card">
+                        <div class="card-header">
+                            <span class="icon">📧</span>
+                            <span>Connect with me</span>
+                        </div>
+                        <div class="link-list" style="margin-top: 20px;">
+                            <a href="https://github.com/kejun" class="link-item" target="_blank">
+                                <span>🐙</span> GitHub
+                            </a>
+                            <a href="http://weibo.com/kejunz" class="link-item" target="_blank">
+                                <span>📱</span> Weibo
+                            </a>
+                            <a href="mailto:listenpro@gmail.com" class="link-item">
+                                <span>✉️</span> Email
+                            </a>
+                            <a href="https://www.oceanbase.ai" class="link-item" target="_blank">
+                                <span>🌊</span> OceanBase
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="command-line" style="margin-top: 30px;">
+                        <span class="prompt">➜</span>
+                        <span class="command">echo "Let's build something amazing together!"</span>
+                    </div>
+                    <div class="output">
+                        <p style="color: var(--accent-green); font-size: 16px; margin-top: 10px;">
+                            🚀 Let's build something amazing together!
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="command-line" style="margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+                <span class="prompt">➜</span>
+                <span class="command" style="color: var(--text-secondary);">
+                    Last login: <span id="last-login"></span> from <span style="color: var(--accent-cyan);">Beijing, China</span>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Show current time
+        document.getElementById('last-login').textContent = new Date().toLocaleString('zh-CN');
+
+        // Section navigation
+        function showSection(sectionId) {
+            // Hide all sections
+            const sections = document.querySelectorAll('.section');
+            sections.forEach(section => {
+                section.classList.remove('active');
+            });
+
+            // Show selected section
+            const targetSection = document.getElementById(sectionId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
+
+            // Update command line
+            const commandLine = targetSection.previousElementSibling;
+            if (commandLine && commandLine.classList.contains('command-line')) {
+                const command = commandLine.querySelector('.command');
+                if (command) {
+                    command.innerHTML = command.textContent + '<span class="cursor"></span>';
+                }
+            }
+        }
+
+        // Typing effect for welcome message
+        const welcomeText = "whoami";
+        const welcomeCommand = document.querySelector('.command');
+        let charIndex = 0;
+
+        function typeWelcome() {
+            if (charIndex < welcomeText.length) {
+                welcomeCommand.innerHTML = welcomeText.substring(0, charIndex + 1) + '<span class="cursor"></span>';
+                charIndex++;
+                setTimeout(typeWelcome, 100);
+            }
+        }
+
+        // Start typing effect on load
+        window.addEventListener('load', () => {
+            welcomeCommand.innerHTML = '<span class="cursor"></span>';
+            charIndex = 0;
+            setTimeout(typeWelcome, 500);
+        });
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '1') showSection('about');
+            if (e.key === '2') showSection('projects');
+            if (e.key === '3') showSection('skills');
+            if (e.key === '4') showSection('stats');
+            if (e.key === '5') showSection('contact');
+        });
+
+        // Animate progress bars when stats section is shown
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const progressBars = entry.target.querySelectorAll('.progress-fill');
+                    progressBars.forEach(bar => {
+                        const width = bar.style.width;
+                        bar.style.width = '0';
+                        setTimeout(() => {
+                            bar.style.width = width;
+                        }, 100);
+                    });
+                }
+            });
+        });
+
+        const statsSection = document.getElementById('stats');
+        if (statsSection) {
+            observer.observe(statsSection);
+        }
+
+        // Easter egg: Konami code
+        let konamiCode = [];
+        const konamiSequence = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+
+        document.addEventListener('keydown', (e) => {
+            konamiCode.push(e.key);
+            konamiCode = konamiCode.slice(-10);
+
+            if (konamiCode.join(',') === konamiSequence.join(',')) {
+                document.body.style.animation = 'rainbow 2s infinite';
+                setTimeout(() => {
+                    document.body.style.animation = '';
+                }, 5000);
+            }
+        });
+
+        // Add rainbow animation
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes rainbow {
+                0% { filter: hue-rotate(0deg); }
+                100% { filter: hue-rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
