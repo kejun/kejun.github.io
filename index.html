@@ -8,13 +8,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 
-    <!-- Three.js for AI Companion 3D Robot -->
+    <!-- Three.js for 3D Models -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
-
-    <!-- Three.js for AI Companion 3D Robot -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
     <style>
         * {
             margin: 0;
@@ -912,7 +909,7 @@
             pointLight.position.set(-2, 4, 3);
             scene.add(pointLight);
 
-            const loader = new THREE.GLTFLoader();
+            const loader = new THREE.FBXLoader();
 
             function loadModel(url) { return new Promise((resolve, reject) => { loader.load(url, resolve, undefined, reject); }); }
 
@@ -1033,12 +1030,12 @@
 
             async function init() {
                 try {
-                    const [walkingGltf, runningGltf] = await Promise.all([
-                        loadModel('./Meshy_AI_Animation_Walking_withSkin.glb'),
-                        loadModel('./Meshy_AI_Animation_Running_withSkin.glb')
+                    const [walkingFbx, runningFbx] = await Promise.all([
+                        loadModel('./models/Walking.fbx'),
+                        loadModel('./models/Standard_Run.fbx')
                     ]);
 
-                    model = walkingGltf.scene;
+                    model = walkingFbx;
 
                     // 调整模型大小和位置（使用几何体 BB 而非 setFromObject）
                     fitModelToCanvas(model);
@@ -1047,8 +1044,8 @@
 
 
                     mixer = new THREE.AnimationMixer(model);
-                    actions['Walking'] = mixer.clipAction(walkingGltf.animations[0]);
-                    actions['Running'] = mixer.clipAction(runningGltf.animations[0]);
+                    actions['Walking'] = mixer.clipAction(walkingFbx.animations[0]);
+                    actions['Running'] = mixer.clipAction(runningFbx.animations[0]);
 
                     actions['Walking'].setLoop(THREE.LoopRepeat);
                     actions['Running'].setLoop(THREE.LoopRepeat);
