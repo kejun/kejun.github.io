@@ -886,7 +886,8 @@
             
             // 鼠标跟随旋转变量
             let targetRotationY = 0;
-            const MAX_ROTATION = 40 * (Math.PI / 180); // 40度，左右各40度，总共80度
+            const MAX_ROTATION_RADIANS = 40 * (Math.PI / 180); // 40度，左右各40度，总共80度
+            const ROTATION_SMOOTHING_FACTOR = 0.05; // 旋转平滑插值系数
 
             const scene = new THREE.Scene();
             scene.background = null;
@@ -1047,7 +1048,7 @@
                 // 鼠标 x 归一化到 [-1, 1]
                 const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
                 // 反向：鼠标往左(mouseX < 0)，模型往右(正方向)
-                targetRotationY = -mouseX * MAX_ROTATION;
+                targetRotationY = -mouseX * MAX_ROTATION_RADIANS;
             });
 
             async function init() {
@@ -1091,7 +1092,7 @@
                         
                         // 平滑旋转 - 鼠标跟随
                         if (model) {
-                            model.rotation.y += (targetRotationY - model.rotation.y) * 0.05;
+                            model.rotation.y += (targetRotationY - model.rotation.y) * ROTATION_SMOOTHING_FACTOR;
                         }
                         
                         controls.update();
