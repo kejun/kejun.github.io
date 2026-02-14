@@ -12,6 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/FBXLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <style>
         * {
             margin: 0;
@@ -874,7 +875,6 @@
 
             // 获取当前画布高度
             function getCanvasHeight() {
-                // 画布高度必须始终落在可视区域内，避免只看到人物下半身
                 const preferredHeight = Math.max(320, window.innerHeight * 0.45);
                 return Math.max(220, Math.min(preferredHeight, window.innerHeight - 40));
             }
@@ -883,108 +883,109 @@
             let model, mixer, actions = {}, currentAnimation = 'Walking', clock = new THREE.Clock();
 
             const scene = new THREE.Scene();
-            // 透明背景
             scene.background = null;
 
-            const camera = new THREE.PerspectiveCamera(50, CONFIG.width / currentHeight, 0.1, 1000);
-            camera.position.set(0, 1.8, 5.6);
-            camera.lookAt(0, 0.7, 0);
+            const camera = new THREE.PerspectiveCamera(45, CONFIG.width / currentHeight, 0.1, 1000);
+            camera.position.set(0, 2, 6);
 
             const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(CONFIG.width, currentHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.shadowMap.enabled = true;
             renderer.outputEncoding = THREE.sRGBEncoding;
-            // 确保透明
             renderer.setClearColor(0x000000, 0);
             canvas.appendChild(renderer.domElement);
 
-            // 灯光
+            // OrbitControls - 允许用户交互旋转
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enablePan = false;
+            controls.enableZoom = false;
+            controls.minPolarAngle = Math.PI / 4;
+            controls.maxPolarAngle = Math.PI / 2;
+            controls.target.set(0, 0.8, 0);
+
+            // 灯光 - FBX 材质需要光照
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
             scene.add(ambientLight);
-            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(5, 10, 5);
-            scene.add(directionalLight);
-            const pointLight = new THREE.PointLight(0x58a6ff, 0.4, 10);
-            pointLight.position.set(-2, 4, 3);
-            scene.add(pointLight);
+            
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            dirLight.position.set(5, 10, 5);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+            
+            const backLight = new THREE.DirectionalLight(0x58a6ff, 0.5);
+            backLight.position.set(-5, 5, -5);
+            scene.add(backLight);
 
             const loader = new THREE.FBXLoader();
 
-            function loadModel(url) { return new Promise((resolve, reject) => { loader.load(url, resolve, undefined, reject); }); }
+            function loadModel(url) {
+                return new Promise((resolve, reject) => {
+                    loader.load(
+                        url,
+                        (object) => {
+                            console.log(`✅ Loaded: ${url}`);
+                            resolve(object);
+                        },
+                        (xhr) => {
+                            console.log(`${(xhr.loaded / xhr.total * 100).toFixed(1)}% loaded`);
+                        },
+                        (error) => {
+                            console.error('❌ FBX加载失败:', error);
+                            reject(error);
+                        }
+                    );
+                });
+            }
 
-            // 从蒙皮网格的几何体获取真实包围盒（绕过 setFromObject 对 SkinnedMesh 的 bug）
-            function getTrueModelBounds(object) {
-                const totalBox = new THREE.Box3();
-                let found = false;
+            // 获取模型真实包围盒
+            function getModelBounds(object) {
+                const box = new THREE.Box3();
                 object.traverse((child) => {
-                    if (child.isMesh || child.isSkinnedMesh) {
+                    if (child.isMesh && child.geometry) {
                         child.geometry.computeBoundingBox();
-                        const gb = child.geometry.boundingBox.clone();
-                        // 蒙皮网格的几何体 BB 已经在模型空间，直接使用
-                        if (!found) {
-                            totalBox.copy(gb);
-                            found = true;
+                        if (!box.isEmpty()) {
+                            box.union(child.geometry.boundingBox);
                         } else {
-                            totalBox.union(gb);
+                            box.copy(child.geometry.boundingBox);
                         }
                     }
                 });
-                return totalBox;
+                return box;
             }
 
-            // 调整模型以适应画布
-            function fitModelToCanvas(model) {
-                // 用几何体包围盒而不是 setFromObject（后者对 SkinnedMesh 不准）
-                const geoBox = getTrueModelBounds(model);
-                const size = geoBox.getSize(new THREE.Vector3());
-                const center = geoBox.getCenter(new THREE.Vector3());
+            // 调整模型（缩放、居中、材质处理）
+            function setupModel(object) {
+                // 获取包围盒
+                const box = getModelBounds(object);
+                const size = box.getSize(new THREE.Vector3());
+                const center = box.getCenter(new THREE.Vector3());
 
-                // 以几何体高度为基准缩放
-                const targetHeight = 1.4;
+                console.log(`📐 Model bounds: ${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}`);
+
+                // FBX 模型通常很大，需要缩放
+                const targetHeight = 1.5;
                 const scale = targetHeight / size.y;
+                object.scale.setScalar(scale);
 
-                model.scale.setScalar(scale);
+                // 居中
+                object.position.x = -center.x * scale;
+                object.position.z = -center.z * scale;
+                object.position.y = -box.min.y * scale;
 
-                // 居中X和Z
-                model.position.x = -center.x * scale;
-                model.position.z = -center.z * scale;
-                // 调整Y位置，让脚底位于y=0
-                model.position.y = -geoBox.min.y * scale;
+                // 遍历处理材质
+                object.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                        // 修复透明/双面显示问题
+                        if (child.material) {
+                            child.material.side = THREE.DoubleSide;
+                        }
+                    }
+                });
 
-                // 默认朝向（鼠标跟随会覆盖）
-                model.rotation.y = THREE.MathUtils.degToRad(-30);
-
-                // 设置相机，基于已知的缩放后尺寸
-                const modelHeight = targetHeight;
-                const modelWidth = size.x * scale;
-                const halfFovRad = THREE.MathUtils.degToRad(camera.fov * 0.5);
-
-                const fitH = modelHeight / (2 * Math.tan(halfFovRad));
-                const fitW = modelWidth / (2 * Math.tan(halfFovRad)) / camera.aspect;
-                const dist = Math.max(fitH, fitW) * 1.3;
-
-                camera.position.set(0, modelHeight * 0.5, dist);
-                camera.lookAt(0, modelHeight * 0.45, 0);
-                camera.updateProjectionMatrix();
-
-            }
-
-            // resize 时重新取景
-            function refitCamera() {
-                if (!model) return;
-                const geoBox = getTrueModelBounds(model);
-                const size = geoBox.getSize(new THREE.Vector3());
-                const targetHeight = 1.4;
-                const scale = targetHeight / size.y;
-                const modelWidth = size.x * scale;
-                const halfFovRad = THREE.MathUtils.degToRad(camera.fov * 0.5);
-                const fitH = targetHeight / (2 * Math.tan(halfFovRad));
-                const fitW = modelWidth / (2 * Math.tan(halfFovRad)) / camera.aspect;
-                const dist = Math.max(fitH, fitW) * 1.3;
-                camera.position.set(0, targetHeight * 0.5, dist);
-                camera.lookAt(0, targetHeight * 0.45, 0);
-                camera.updateProjectionMatrix();
+                return object;
             }
 
             // 动画自动交替
@@ -994,15 +995,15 @@
 
                 async function loop() {
                     while (true) {
-                        if (currentAnimation !== 'Walking') {
-                            actions[currentAnimation].fadeOut(0.5);
+                        if (currentAnimation !== 'Walking' && actions['Walking']) {
+                            actions[currentAnimation]?.fadeOut(0.5);
                             actions['Walking'].reset().fadeIn(0.5).play();
                             currentAnimation = 'Walking';
                         }
                         await new Promise(r => setTimeout(r, WALK_DURATION));
 
-                        if (currentAnimation !== 'Running') {
-                            actions[currentAnimation].fadeOut(0.5);
+                        if (currentAnimation !== 'Running' && actions['Running']) {
+                            actions[currentAnimation]?.fadeOut(0.5);
                             actions['Running'].reset().fadeIn(0.5).play();
                             currentAnimation = 'Running';
                         }
@@ -1012,7 +1013,7 @@
                 loop();
             }
 
-            // 窗口大小调整
+            // 窗口调整
             function handleResize() {
                 const newHeight = getCanvasHeight();
                 if (Math.abs(newHeight - currentHeight) > 5) {
@@ -1021,60 +1022,60 @@
                     camera.aspect = CONFIG.width / currentHeight;
                     camera.updateProjectionMatrix();
                     renderer.setSize(CONFIG.width, currentHeight);
-
-                    // 重新根据当前长宽比取景
-                    refitCamera();
                 }
             }
             window.addEventListener('resize', handleResize);
 
             async function init() {
                 try {
+                    console.log('🚀 开始加载 FBX 模型...');
+                    
                     const [walkingFbx, runningFbx] = await Promise.all([
                         loadModel('./models/Walking.fbx'),
                         loadModel('./models/Standard_Run.fbx')
                     ]);
 
-                    model = walkingFbx;
-
-                    // 调整模型大小和位置（使用几何体 BB 而非 setFromObject）
-                    fitModelToCanvas(model);
-
+                    // 设置 Walking 模型
+                    model = setupModel(walkingFbx);
                     scene.add(model);
 
-
+                    // 动画处理
                     mixer = new THREE.AnimationMixer(model);
-                    actions['Walking'] = mixer.clipAction(walkingFbx.animations[0]);
-                    actions['Running'] = mixer.clipAction(runningFbx.animations[0]);
+                    
+                    if (walkingFbx.animations?.length) {
+                        actions['Walking'] = mixer.clipAction(walkingFbx.animations[0]);
+                        actions['Walking'].setLoop(THREE.LoopRepeat);
+                        console.log(`🎬 Walking animation: ${walkingFbx.animations.length} clips`);
+                    }
+                    
+                    if (runningFbx.animations?.length) {
+                        actions['Running'] = mixer.clipAction(runningFbx.animations[0]);
+                        actions['Running'].setLoop(THREE.LoopRepeat);
+                        console.log(`🎬 Running animation: ${runningFbx.animations.length} clips`);
+                    }
 
-                    actions['Walking'].setLoop(THREE.LoopRepeat);
-                    actions['Running'].setLoop(THREE.LoopRepeat);
-                    actions['Walking'].play();
+                    if (actions['Walking']) {
+                        actions['Walking'].play();
+                        startAnimationLoop();
+                    }
 
-                    startAnimationLoop();
-
+                    // 渲染循环
                     (function animate() {
                         requestAnimationFrame(animate);
                         const delta = clock.getDelta();
                         if (mixer) mixer.update(delta);
+                        controls.update();
                         renderer.render(scene, camera);
                     })();
+
+                    console.log('✅ AI Companion 初始化完成!');
+
                 } catch (e) {
-                    console.error('加载模型失败:', e);
+                    console.error('❌ 加载模型失败:', e);
                 }
             }
 
-            // 鼠标跟随旋转：根据鼠标在屏幕上的X位置，在 -45° ~ +45° 范围内转动人物
-            const MAX_ROT = THREE.MathUtils.degToRad(45);
-            document.addEventListener('mousemove', (e) => {
-                if (!model) return;
-                // 鼠标X归一化到 -1 ~ 1（左边-1，右边+1）
-                const nx = (e.clientX / window.innerWidth) * 2 - 1;
-                // 鼠标在左边时人物朝左转（正Y旋转），右边时朝右转（负Y旋转）
-                model.rotation.y = nx * MAX_ROT;
-            });
-
-            // 初始化设置高度
+            // 初始化
             canvas.style.height = currentHeight + 'px';
             init();
         })();
