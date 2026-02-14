@@ -966,7 +966,14 @@
                     }
                 });
                 
-                return box;
+                // 验证包围盒是否有效
+                if (!box.isEmpty()) {
+                    return box;
+                }
+                
+                // 如果没有找到有效的 mesh，返回一个默认的包围盒
+                console.warn('⚠️ No valid meshes found, using fallback bounding box');
+                return new THREE.Box3().setFromObject(object);
             }
 
             // 调整模型（缩放、居中、材质处理）
@@ -1104,9 +1111,8 @@
                     if (walkingFbx.animations?.length) {
                         actions['Walking'] = mixer.clipAction(walkingFbx.animations[0]);
                         actions['Walking'].setLoop(THREE.LoopRepeat);
-                        // 设置到初始帧但不播放
+                        // 设置到初始帧但不播放 (reset() 已经将动画设为初始状态)
                         actions['Walking'].reset();
-                        mixer.setTime(0);
                         console.log(`🎬 Walking animation: ${walkingFbx.animations.length} clips`);
                     }
                     
