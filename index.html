@@ -872,7 +872,7 @@
 
         // AI Companion 3D Logic
         (function() {
-            const AI_COMPANION_VERSION = 'v2026.02.14.4';
+            const AI_COMPANION_VERSION = 'v2026.02.14.5';
             const canvas = document.getElementById('ai-companion-canvas');
             const CONFIG = { width: 340 };
 
@@ -1036,7 +1036,7 @@
                 const centerZ = (finalBox.min.z + finalBox.max.z) / 2;
 
                 // 计算合适的距离和高度，使【头-脚】范围完全出现在视口内，头部居中
-                const padding = 0.10 * modelHeight; // 10% 留白用于视觉舒适度
+                const padding = 0.20 * modelHeight; // 20% 留白用于视觉舒适度
                 const visibleHeight = modelHeight + padding;
                 const fov = camera.fov * (Math.PI / 180);
                 // 计算摄像机距离，使整个模型（从头到脚）完全可见
