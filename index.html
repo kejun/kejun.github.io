@@ -7,6 +7,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- Three.js for AI Companion 3D Robot -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+    <!-- Three.js for AI Companion 3D Robot -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
     <style>
         * {
             margin: 0;
@@ -846,6 +854,123 @@
             }
         `;
         document.head.appendChild(style);
+
+        // ========== AI Companion 3D Robot ==========
+        const aiCompanionCSS = `
+            #ai-companion-root{position:fixed;bottom:20px;right:20px;z-index:999999;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+            #ai-companion-canvas{width:300px;height:50vh;max-height:400px;display:none;border-radius:16px;overflow:hidden;box-shadow:0 10px 40px rgba(0,0,0,0.3);background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%)}
+            #ai-companion-canvas.visible{display:block;animation:slideIn .4s cubic-bezier(.4,0,.2,1)}
+            @keyframes slideIn{from{opacity:0;transform:translateY(20px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+            #ai-companion-toggle{position:fixed;bottom:20px;right:20px;width:60px;height:60px;border-radius:50%;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);border:none;cursor:pointer;box-shadow:0 4px 20px rgba(102,126,234,.4);z-index:1000000;transition:all .3s ease;display:flex;align-items:center;justify-content:center}
+            #ai-companion-toggle:hover{transform:scale(1.1);box-shadow:0 6px 30px rgba(102,126,234,.6)}
+            #ai-companion-toggle svg{width:28px;height:28px;fill:white}
+            #ai-companion-close{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.1);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;transition:background .2s}
+            #ai-companion-close:hover{background:rgba(255,255,255,.2)}
+            #ai-companion-close svg{width:16px;height:16px;fill:white}
+            #ai-companion-controls{position:absolute;bottom:15px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:10}
+            #ai-companion-controls button{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);color:#fff;padding:6px 12px;border-radius:20px;cursor:pointer;font-size:12px;transition:all .2s ease}
+            #ai-companion-controls button:hover{background:rgba(255,255,255,.25)}
+            #ai-companion-controls button.active{background:rgba(102,126,234,.6);border-color:rgba(102,126,234,.8)}
+            #ai-companion-loading{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#00d9ff;font-size:14px}
+            #ai-companion-label{position:absolute;top:12px;left:15px;color:rgba(255,255,255,.7);font-size:12px;z-index:10}
+        `;
+        
+        // 添加样式
+        const aiStyle = document.createElement('style');
+        aiStyle.textContent = aiCompanionCSS;
+        document.head.appendChild(aiStyle);
+        
+        // 添加 HTML 结构
+        const aiHTML = `
+            <button id="ai-companion-toggle" title="AI Companion">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+            </button>
+            <div id="ai-companion-root">
+                <div id="ai-companion-canvas">
+                    <button id="ai-companion-close" title="关闭"><svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
+                    <div id="ai-companion-label">🤖 AI Companion</div>
+                    <div id="ai-companion-loading">加载中...</div>
+                    <div id="ai-companion-controls">
+                        <button data-action="Walking" class="active">🚶</button>
+                        <button data-action="Running">🏃</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', aiHTML);
+        
+        // AI Companion 3D Logic
+        (function() {
+            const CONFIG = { canvasWidth: 300, maxHeight: 400 };
+            let model, mixer, actions = {}, currentAnimation = 'Walking', clock = new THREE.Clock();
+            const canvas = document.getElementById('ai-companion-canvas');
+            const toggleBtn = document.getElementById('ai-companion-toggle');
+            const closeBtn = document.getElementById('ai-companion-close');
+            const loading = document.getElementById('ai-companion-loading');
+            const controlBtns = document.querySelectorAll('#ai-companion-controls button');
+            
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(45, CONFIG.canvasWidth / CONFIG.maxHeight, 0.1, 1000);
+            camera.position.set(0, 1.5, 4);
+            camera.lookAt(0, 0.8, 0);
+            
+            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(CONFIG.canvasWidth, CONFIG.maxHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            canvas.appendChild(renderer.domElement);
+            
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 10, 5);
+            scene.add(directionalLight);
+            const pointLight = new THREE.PointLight(0x00d9ff, 0.4, 8);
+            pointLight.position.set(-2, 3, 2);
+            scene.add(pointLight);
+            
+            const glow = new THREE.Mesh(new THREE.CircleGeometry(1.5, 32), new THREE.MeshBasicMaterial({ color: 0x667eea, transparent: true, opacity: 0.15 }));
+            glow.rotation.x = -Math.PI / 2;
+            glow.position.y = -0.02;
+            scene.add(glow);
+            
+            const loader = new THREE.GLTFLoader();
+            
+            function loadModel(url) { return new Promise((resolve, reject) => { loader.load(url, resolve, undefined, reject); }); }
+            
+            async function init() {
+                try {
+                    const [walkingGltf, runningGltf] = await Promise.all([
+                        loadModel('./Meshy_AI_Animation_Walking_withSkin.glb'),
+                        loadModel('./Meshy_AI_Animation_Running_withSkin.glb')
+                    ]);
+                    model = walkingGltf.scene;
+                    const box = new THREE.Box3().setFromObject(model);
+                    const scale = 1.2 / Math.max(box.getSize(new THREE.Vector3()).x, box.getSize(new THREE.Vector3()).y, box.getSize(new THREE.Vector3()).z);
+                    model.scale.setScalar(scale);
+                    const center = box.getCenter(new THREE.Vector3());
+                    model.position.x = -center.x * scale;
+                    model.position.y = -box.min.y * scale;
+                    scene.add(model);
+                    mixer = new THREE.AnimationMixer(model);
+                    actions['Walking'] = mixer.clipAction(walkingGltf.animations[0]);
+                    actions['Running'] = mixer.clipAction(runningGltf.animations[0]);
+                    actions['Walking'].play();
+                    loading.style.display = 'none';
+                    (function animate() { requestAnimationFrame(animate); const delta = clock.getDelta(); if (mixer) mixer.update(delta); renderer.render(scene, camera); })();
+                } catch (e) { console.error('加载模型失败:', e); loading.textContent = '加载失败'; }
+            }
+            
+            function show() { canvas.classList.add('visible'); toggleBtn.style.display = 'none'; }
+            function hide() { canvas.classList.remove('visible'); setTimeout(() => { toggleBtn.style.display = 'flex'; }, 400); }
+            function switchAnim(name) { if (actions[name] && currentAnimation !== name) { actions[currentAnimation].fadeOut(0.3); actions[name].reset().fadeIn(0.3).play(); currentAnimation = name; controlBtns.forEach(b => b.classList.toggle('active', b.dataset.action === name)); } }
+            
+            toggleBtn.addEventListener('click', () => { if (!model) init(); show(); });
+            closeBtn.addEventListener('click', hide);
+            controlBtns.forEach(b => b.addEventListener('click', () => switchAnim(b.dataset.action)));
+            init();
+        })();
     </script>
 </body>
 </html>
