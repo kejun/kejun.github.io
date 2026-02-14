@@ -972,9 +972,13 @@
                 const scaledBox = new THREE.Box3().setFromObject(object);
                 const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
 
+                // 居中 x 和 z 轴
                 object.position.x -= scaledCenter.x;
                 object.position.z -= scaledCenter.z;
-                object.position.y -= scaledBox.min.y;
+                
+                // 将脚底放置在画布底部（y = 0.05，稍微离开底部边缘）
+                const desiredY = 0.05;
+                object.position.y = object.position.y - (scaledBox.min.y - desiredY);
 
                 object.traverse((child) => {
                     if (child.isMesh) {
@@ -988,19 +992,23 @@
 
                 object.updateMatrixWorld(true);
                 const finalBox = new THREE.Box3().setFromObject(object);
-                const finalCenter = finalBox.getCenter(new THREE.Vector3());
                 const finalSize = finalBox.getSize(new THREE.Vector3());
+                const modelHeight = finalSize.y;
 
-                controls.target.set(finalCenter.x, finalCenter.y, finalCenter.z); // 指向模型中心点
+                // OrbitControls target 指向模型身高的中下部（55%处）
+                const targetY = finalBox.min.y + (modelHeight * 0.55);
+                controls.target.set(0, targetY, 0);
 
+                // 调整摄像机位置，确保模型完全可见
                 const fov = camera.fov * (Math.PI / 180);
-                const dist = (finalSize.y / 2) / Math.tan(fov / 2) * 1.2; // 减小距离倍数到1.2，让模型显得更大
-                camera.position.set(finalCenter.x, finalCenter.y, finalCenter.z + dist);
+                const dist = (modelHeight / 2) / Math.tan(fov / 2) * 1.15; // 调整距离倍数确保头部和脚部都在可视范围内
+                camera.position.set(0, targetY, dist);
 
                 controls.update();
 
                 console.log(`📷 Camera at: (${camera.position.x.toFixed(2)}, ${camera.position.y.toFixed(2)}, ${camera.position.z.toFixed(2)})`);
-                console.log(`🎯 Looking at: (${finalCenter.x.toFixed(2)}, ${finalCenter.y.toFixed(2)}, ${finalCenter.z.toFixed(2)})`);
+                console.log(`🎯 Looking at: (0.00, ${targetY.toFixed(2)}, 0.00)`);
+                console.log(`👣 Feet at Y: ${finalBox.min.y.toFixed(2)}, Head at Y: ${finalBox.max.y.toFixed(2)}`);
 
                 return object;
             }
