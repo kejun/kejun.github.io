@@ -942,50 +942,59 @@
 
             // 获取模型真实包围盒
             function getModelBounds(object) {
-                const box = new THREE.Box3();
-                object.traverse((child) => {
-                    if (child.isMesh && child.geometry) {
-                        child.geometry.computeBoundingBox();
-                        if (!box.isEmpty()) {
-                            box.union(child.geometry.boundingBox);
-                        } else {
-                            box.copy(child.geometry.boundingBox);
-                        }
-                    }
-                });
+                object.updateMatrixWorld(true);
+                const box = new THREE.Box3().setFromObject(object);
                 return box;
             }
 
             // 调整模型（缩放、居中、材质处理）
             function setupModel(object) {
-                // 获取包围盒
-                const box = getModelBounds(object);
+                object.updateMatrixWorld(true);
+
+                const box = new THREE.Box3().setFromObject(object);
                 const size = box.getSize(new THREE.Vector3());
                 const center = box.getCenter(new THREE.Vector3());
 
                 console.log(`📐 Model bounds: ${size.x.toFixed(2)} x ${size.y.toFixed(2)} x ${size.z.toFixed(2)}`);
+                console.log(`📍 Model center: ${center.x.toFixed(2)}, ${center.y.toFixed(2)}, ${center.z.toFixed(2)}`);
 
-                // FBX 模型通常很大，需要缩放
                 const targetHeight = 1.5;
                 const scale = targetHeight / size.y;
                 object.scale.setScalar(scale);
 
-                // 居中
-                object.position.x = -center.x * scale;
-                object.position.z = -center.z * scale;
-                object.position.y = -box.min.y * scale;
+                object.updateMatrixWorld(true);
+                const scaledBox = new THREE.Box3().setFromObject(object);
+                const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
 
-                // 遍历处理材质
+                object.position.x -= scaledCenter.x;
+                object.position.z -= scaledCenter.z;
+                object.position.y -= scaledBox.min.y;
+
                 object.traverse((child) => {
                     if (child.isMesh) {
                         child.castShadow = true;
                         child.receiveShadow = true;
-                        // 修复透明/双面显示问题
                         if (child.material) {
                             child.material.side = THREE.DoubleSide;
                         }
                     }
                 });
+
+                object.updateMatrixWorld(true);
+                const finalBox = new THREE.Box3().setFromObject(object);
+                const finalCenter = finalBox.getCenter(new THREE.Vector3());
+                const finalSize = finalBox.getSize(new THREE.Vector3());
+
+                controls.target.set(finalCenter.x, finalCenter.y, finalCenter.z);
+
+                const fov = camera.fov * (Math.PI / 180);
+                const dist = (finalSize.y / 2) / Math.tan(fov / 2) * 1.5;
+                camera.position.set(finalCenter.x, finalCenter.y, finalCenter.z + dist);
+
+                controls.update();
+
+                console.log(`📷 Camera at: (${camera.position.x.toFixed(2)}, ${camera.position.y.toFixed(2)}, ${camera.position.z.toFixed(2)})`);
+                console.log(`🎯 Looking at: (${finalCenter.x.toFixed(2)}, ${finalCenter.y.toFixed(2)}, ${finalCenter.z.toFixed(2)})`);
 
                 return object;
             }
