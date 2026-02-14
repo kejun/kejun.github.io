@@ -1036,7 +1036,7 @@
                 const centerZ = (finalBox.min.z + finalBox.max.z) / 2;
 
                 // 计算合适的距离和高度，使【头-脚】范围完全出现在视口内且脚部在底部略有留白
-                const padding = 0.1 * modelHeight; // 10% 留空用于视觉舒适度
+                const padding = 0.1 * modelHeight; // 10% 留白用于视觉舒适度
                 const visibleHeight = modelHeight + padding;
                 const fov = camera.fov * (Math.PI / 180);
                 // 计算摄像机距离，使视野下边界正好接近脚部
