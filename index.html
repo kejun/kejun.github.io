@@ -872,7 +872,7 @@
 
         // AI Companion 3D Logic
         (function() {
-            const AI_COMPANION_VERSION = 'v2026.02.14.3';
+            const AI_COMPANION_VERSION = 'v2026.02.14.4';
             const canvas = document.getElementById('ai-companion-canvas');
             const CONFIG = { width: 340 };
 
@@ -1035,23 +1035,22 @@
                 const centerX = (finalBox.min.x + finalBox.max.x) / 2;
                 const centerZ = (finalBox.min.z + finalBox.max.z) / 2;
 
-                // 计算合适的距离和高度，使【头-脚】范围完全出现在视口内且脚部紧贴画布底部
+                // 计算合适的距离和高度，使【头-脚】范围完全出现在视口内，头部居中
                 const padding = 0.10 * modelHeight; // 10% 留白用于视觉舒适度
                 const visibleHeight = modelHeight + padding;
                 const fov = camera.fov * (Math.PI / 180);
-                // 计算摄像机距离，使整个模型（从脚到头）完全可见
-                // 摄像机 y 与脚齐平，z 轴退后足够距离以看到全身
-                const camDist = (visibleHeight / 2) / Math.tan(fov / 2);
+                // 计算摄像机距离，使整个模型（从头到脚）完全可见
+                // 摄像机 y 对准头顶，z 轴退后足够距离以看到全身（包括脚）
+                const camDist = visibleHeight / (2 * Math.tan(fov / 2));
                 
-                // Camera target 严格对准脚底位置，使脚在视野底部
-                // 这样可以确保脚紧贴画布底部边缘
-                controls.target.set(centerX, footY, centerZ);
+                // Camera target 对准头顶位置，使头在视野中心
+                // 这样可以确保头部在画布中央，脚部一定可见
+                controls.target.set(centerX, headY, centerZ);
                 
-                // 摄像机位置：x, z 居中，y 设置为脚底高度（与脚齐平）
-                // z 轴退后足够距离，确保从脚到头的完整模型都可见
-                // 关键：y 只用 footY，不再使用 footY + visibleHeight/2
-                camera.position.set(centerX, footY, centerZ + camDist);
-                camera.lookAt(centerX, footY, centerZ);
+                // 摄像机位置：x, z 居中，y 设置为头顶高度（与头齐平）
+                // z 轴退后足够距离，确保从头到脚的完整模型都可见
+                camera.position.set(centerX, headY, centerZ + camDist);
+                camera.lookAt(centerX, headY, centerZ);
 
                 controls.update();
 
@@ -1063,7 +1062,7 @@
                 console.log(`📷 Camera FOV: ${camera.fov}°, FOV (radians): ${fov.toFixed(4)}`);
                 console.log(`🔭 Camera distance (z): ${camDist.toFixed(2)}`);
                 console.log(`📷 Camera position: (${camera.position.x.toFixed(2)}, ${camera.position.y.toFixed(2)}, ${camera.position.z.toFixed(2)})`);
-                console.log(`🎯 Camera lookAt: (${centerX.toFixed(2)}, ${footY.toFixed(2)}, ${centerZ.toFixed(2)})`);
+                console.log(`🎯 Camera lookAt: (${centerX.toFixed(2)}, ${headY.toFixed(2)}, ${centerZ.toFixed(2)})`);
                 console.log(`🎯 Controls target: (${controls.target.x.toFixed(2)}, ${controls.target.y.toFixed(2)}, ${controls.target.z.toFixed(2)})`);
                 console.log(`📊 Center position: X=${centerX.toFixed(2)}, Z=${centerZ.toFixed(2)}`);
 
