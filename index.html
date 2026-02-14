@@ -991,10 +991,10 @@
                 const finalCenter = finalBox.getCenter(new THREE.Vector3());
                 const finalSize = finalBox.getSize(new THREE.Vector3());
 
-                controls.target.set(finalCenter.x, finalCenter.y * 0.85, finalCenter.z); // 降低目标点，避免头部溢出
+                controls.target.set(finalCenter.x, finalCenter.y, finalCenter.z); // 指向模型中心点
 
                 const fov = camera.fov * (Math.PI / 180);
-                const dist = (finalSize.y / 2) / Math.tan(fov / 2) * 2.0; // 增大距离倍数从1.5到2.0
+                const dist = (finalSize.y / 2) / Math.tan(fov / 2) * 1.2; // 减小距离倍数到1.2，让模型显得更大
                 camera.position.set(finalCenter.x, finalCenter.y, finalCenter.z + dist);
 
                 controls.update();
@@ -1047,8 +1047,8 @@
             document.addEventListener('mousemove', (event) => {
                 // 鼠标 x 归一化到 [-1, 1]
                 const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
-                // 反向：鼠标往左(mouseX < 0)，模型往右(正方向)
-                targetRotationY = -mouseX * MAX_ROTATION_RADIANS;
+                // 同向跟随：鼠标往左(mouseX < 0)，模型往左(rotation.y < 0)；鼠标往右(mouseX > 0)，模型往右(rotation.y > 0)
+                targetRotationY = mouseX * MAX_ROTATION_RADIANS;
             });
 
             async function init() {
