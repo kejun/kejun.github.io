@@ -872,6 +872,7 @@
 
         // AI Companion 3D Logic
         (function() {
+            const AI_COMPANION_VERSION = 'v2026.02.14.1';
             const canvas = document.getElementById('ai-companion-canvas');
             const CONFIG = { width: 340 };
 
@@ -1061,6 +1062,7 @@
 
             async function init() {
                 try {
+                    console.log(`[AI Companion] Version: ${AI_COMPANION_VERSION}`);
                     console.log('🚀 开始加载 FBX 模型...');
                     
                     const [walkingFbx, runningFbx] = await Promise.all([
