@@ -883,6 +883,11 @@
 
             let currentHeight = getCanvasHeight();
             let model, mixer, actions = {}, currentAnimation = 'Walking', clock = new THREE.Clock();
+            
+            // 鼠标跟随旋转变量
+            let targetRotationY = 0;
+            const MAX_ROTATION_RADIANS = 40 * (Math.PI / 180); // 40度，左右各40度，总共80度
+            const ROTATION_SMOOTHING_FACTOR = 0.05; // 旋转平滑插值系数
 
             const scene = new THREE.Scene();
             scene.background = null;
@@ -898,10 +903,11 @@
             renderer.setClearColor(0x000000, 0);
             canvas.appendChild(renderer.domElement);
 
-            // OrbitControls - 允许用户交互旋转
+            // OrbitControls - 禁用旋转，改用鼠标跟随
             const controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enablePan = false;
             controls.enableZoom = false;
+            controls.enableRotate = false; // 禁用旋转功能
             controls.minPolarAngle = Math.PI / 4;
             controls.maxPolarAngle = Math.PI / 2;
             controls.target.set(0, 0.8, 0);
@@ -985,10 +991,10 @@
                 const finalCenter = finalBox.getCenter(new THREE.Vector3());
                 const finalSize = finalBox.getSize(new THREE.Vector3());
 
-                controls.target.set(finalCenter.x, finalCenter.y, finalCenter.z);
+                controls.target.set(finalCenter.x, finalCenter.y * 0.85, finalCenter.z); // 降低目标点，避免头部溢出
 
                 const fov = camera.fov * (Math.PI / 180);
-                const dist = (finalSize.y / 2) / Math.tan(fov / 2) * 1.5;
+                const dist = (finalSize.y / 2) / Math.tan(fov / 2) * 2.0; // 增大距离倍数从1.5到2.0
                 camera.position.set(finalCenter.x, finalCenter.y, finalCenter.z + dist);
 
                 controls.update();
@@ -1036,6 +1042,14 @@
                 }
             }
             window.addEventListener('resize', handleResize);
+            
+            // 鼠标跟随旋转事件
+            document.addEventListener('mousemove', (event) => {
+                // 鼠标 x 归一化到 [-1, 1]
+                const mouseX = (event.clientX / window.innerWidth) * 2 - 1;
+                // 反向：鼠标往左(mouseX < 0)，模型往右(正方向)
+                targetRotationY = -mouseX * MAX_ROTATION_RADIANS;
+            });
 
             async function init() {
                 try {
@@ -1075,6 +1089,12 @@
                         requestAnimationFrame(animate);
                         const delta = clock.getDelta();
                         if (mixer) mixer.update(delta);
+                        
+                        // 平滑旋转 - 鼠标跟随
+                        if (model) {
+                            model.rotation.y += (targetRotationY - model.rotation.y) * ROTATION_SMOOTHING_FACTOR;
+                        }
+                        
                         controls.update();
                         renderer.render(scene, camera);
                     })();
