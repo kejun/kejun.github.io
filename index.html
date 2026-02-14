@@ -1001,7 +1001,7 @@
 
                 // 调整摄像机位置，确保模型完全可见
                 const fov = camera.fov * (Math.PI / 180);
-                const dist = (modelHeight / 2) / Math.tan(fov / 2) * 1.15; // 稍微增加距离以确保头部不被裁剪
+                const dist = (modelHeight / 2) / Math.tan(fov / 2) * 1.15; // 调整距离倍数确保头部和脚部都在可视范围内
                 camera.position.set(0, targetY, dist);
 
                 controls.update();
