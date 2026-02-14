@@ -947,18 +947,42 @@
                 });
             }
 
-            // 获取模型真实包围盒
-            function getModelBounds(object) {
+            // 获取模型完整包围盒 - 遍历所有 mesh 并应用世界变换
+            function getCompleteModelBounds(object) {
+                const box = new THREE.Box3();
                 object.updateMatrixWorld(true);
-                const box = new THREE.Box3().setFromObject(object);
+                
+                object.traverse(child => {
+                    if (child.isMesh && child.geometry) {
+                        // 计算几何体的包围盒
+                        child.geometry.computeBoundingBox();
+                        
+                        if (child.geometry.boundingBox) {
+                            // 将 mesh 本地包围盒变换到世界坐标
+                            const gbox = child.geometry.boundingBox.clone();
+                            gbox.applyMatrix4(child.matrixWorld);
+                            box.union(gbox);
+                        }
+                    }
+                });
+                
                 return box;
             }
 
             // 调整模型（缩放、居中、材质处理）
             function setupModel(object) {
+                // 先计算所有mesh的几何包围盒
+                object.traverse((child) => {
+                    if (child.isMesh && child.geometry) {
+                        child.geometry.computeBoundingBox();
+                        child.geometry.computeBoundingSphere();
+                    }
+                });
+                
                 object.updateMatrixWorld(true);
 
-                const box = new THREE.Box3().setFromObject(object);
+                // 使用完整的包围盒计算方法
+                const box = getCompleteModelBounds(object);
                 const size = box.getSize(new THREE.Vector3());
                 const center = box.getCenter(new THREE.Vector3());
 
@@ -970,7 +994,9 @@
                 object.scale.setScalar(scale);
 
                 object.updateMatrixWorld(true);
-                const scaledBox = new THREE.Box3().setFromObject(object);
+                
+                // 重新计算缩放后的包围盒
+                const scaledBox = getCompleteModelBounds(object);
                 const scaledCenter = scaledBox.getCenter(new THREE.Vector3());
 
                 // 居中 x 和 z 轴
@@ -992,7 +1018,9 @@
                 });
 
                 object.updateMatrixWorld(true);
-                const finalBox = new THREE.Box3().setFromObject(object);
+                
+                // 最终包围盒计算
+                const finalBox = getCompleteModelBounds(object);
                 const finalSize = finalBox.getSize(new THREE.Vector3());
                 const modelHeight = finalSize.y;
 
@@ -1070,16 +1098,15 @@
                         loadModel('./models/Standard_Run.fbx')
                     ]);
 
-                    // 设置 Walking 模型
-                    model = setupModel(walkingFbx);
-                    scene.add(model);
-
-                    // 动画处理
-                    mixer = new THREE.AnimationMixer(model);
+                    // 创建动画混合器并设置到初始帧（确保包围盒计算准确）
+                    mixer = new THREE.AnimationMixer(walkingFbx);
                     
                     if (walkingFbx.animations?.length) {
                         actions['Walking'] = mixer.clipAction(walkingFbx.animations[0]);
                         actions['Walking'].setLoop(THREE.LoopRepeat);
+                        // 设置到初始帧但不播放
+                        actions['Walking'].reset();
+                        mixer.setTime(0);
                         console.log(`🎬 Walking animation: ${walkingFbx.animations.length} clips`);
                     }
                     
@@ -1089,6 +1116,11 @@
                         console.log(`🎬 Running animation: ${runningFbx.animations.length} clips`);
                     }
 
+                    // 在动画暂停状态下设置模型位置
+                    model = setupModel(walkingFbx);
+                    scene.add(model);
+
+                    // 现在可以开始播放动画
                     if (actions['Walking']) {
                         actions['Walking'].play();
                         startAnimationLoop();
