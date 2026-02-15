@@ -986,6 +986,53 @@
                 return new THREE.Box3().setFromObject(object);
             }
 
+            // 创建程序化牛仔布纹理
+            function createDenimTexture() {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 256;
+                const ctx = canvas.getContext('2d');
+
+                // 基础牛仔蓝色
+                ctx.fillStyle = '#2b4570';
+                ctx.fillRect(0, 0, 256, 256);
+
+                // 添加牛仔布纤维纹理（斜纹）
+                ctx.strokeStyle = 'rgba(60, 90, 140, 0.4)';
+                ctx.lineWidth = 1;
+                for (let i = -256; i < 512; i += 3) {
+                    ctx.beginPath();
+                    ctx.moveTo(i, 0);
+                    ctx.lineTo(i + 256, 256);
+                    ctx.stroke();
+                }
+
+                // 反向斜纹（交叉编织效果）
+                ctx.strokeStyle = 'rgba(35, 55, 90, 0.3)';
+                for (let i = -256; i < 512; i += 4) {
+                    ctx.beginPath();
+                    ctx.moveTo(i + 256, 0);
+                    ctx.lineTo(i, 256);
+                    ctx.stroke();
+                }
+
+                // 添加随机噪点模拟布料质感
+                const imageData = ctx.getImageData(0, 0, 256, 256);
+                for (let i = 0; i < imageData.data.length; i += 4) {
+                    const noise = (Math.random() - 0.5) * 15;
+                    imageData.data[i] += noise;
+                    imageData.data[i + 1] += noise;
+                    imageData.data[i + 2] += noise;
+                }
+                ctx.putImageData(imageData, 0, 0);
+
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.wrapS = THREE.RepeatWrapping;
+                texture.wrapT = THREE.RepeatWrapping;
+                texture.repeat.set(4, 4);
+                return texture;
+            }
+
             // 调整模型（缩放、居中、材质处理）
             function setupModel(object) {
                 // 先计算所有mesh的几何包围盒
@@ -1024,6 +1071,9 @@
                 const desiredY = 0.05;
                 object.position.y = object.position.y - (scaledBox.min.y - desiredY);
 
+                // 创建牛仔裤纹理
+                const denimTexture = createDenimTexture();
+
                 object.traverse((child) => {
                     if (child.isMesh) {
                         child.castShadow = true;
@@ -1043,6 +1093,50 @@
                             if (child.material.specular) {
                                 child.material.specular.setHex(0x222222);
                             }
+
+                            // 将裤子区域贴图改为牛仔裤效果
+                            // 使用 onBeforeCompile 注入自定义着色器，根据世界坐标 Y 值混合牛仔布纹理
+                            child.material.userData.denimTexture = denimTexture;
+                            child.material.onBeforeCompile = (shader) => {
+                                // 模型总高度约 1.5，脚底约 0.05
+                                // 裤子区域：脚踝(~0.10) 到 腰部(~0.55)
+                                shader.uniforms.denimMap = { value: denimTexture };
+                                shader.uniforms.pantsBottom = { value: 0.10 };
+                                shader.uniforms.pantsTop = { value: 0.55 };
+                                shader.uniforms.blendEdge = { value: 0.03 };
+
+                                // 顶点着色器：传递世界坐标 Y（支持骨骼动画）
+                                shader.vertexShader = shader.vertexShader.replace(
+                                    'void main() {',
+                                    'varying float vWorldY;\nvoid main() {'
+                                );
+                                shader.vertexShader = shader.vertexShader.replace(
+                                    '#include <project_vertex>',
+                                    'vWorldY = (modelMatrix * vec4(transformed, 1.0)).y;\n#include <project_vertex>'
+                                );
+
+                                // 片段着色器：在裤子区域混合牛仔布颜色
+                                shader.fragmentShader = shader.fragmentShader.replace(
+                                    'void main() {',
+                                    'uniform sampler2D denimMap;\nuniform float pantsBottom;\nuniform float pantsTop;\nuniform float blendEdge;\nvarying float vWorldY;\nvoid main() {'
+                                );
+                                shader.fragmentShader = shader.fragmentShader.replace(
+                                    '#include <dithering_fragment>',
+                                    `// 牛仔裤贴图混合
+                                    float bottomEdge = smoothstep(pantsBottom - blendEdge, pantsBottom + blendEdge, vWorldY);
+                                    float topEdge = 1.0 - smoothstep(pantsTop - blendEdge, pantsTop + blendEdge, vWorldY);
+                                    float pantsMask = bottomEdge * topEdge;
+                                    #ifdef USE_UV
+                                    vec2 denimUV = vUv * 4.0;
+                                    #else
+                                    vec2 denimUV = gl_FragCoord.xy / 64.0;
+                                    #endif
+                                    vec3 denimColor = texture2D(denimMap, denimUV).rgb;
+                                    gl_FragColor.rgb = mix(gl_FragColor.rgb, denimColor, pantsMask * 0.85);
+                                    #include <dithering_fragment>`
+                                );
+                            };
+                            child.material.needsUpdate = true;
                         }
                     }
                 });
