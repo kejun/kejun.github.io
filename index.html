@@ -900,7 +900,10 @@
             renderer.setSize(CONFIG.width, currentHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
             renderer.outputEncoding = THREE.sRGBEncoding;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.0;
             renderer.setClearColor(0x000000, 0);
             canvas.appendChild(renderer.domElement);
 
@@ -913,16 +916,23 @@
             controls.maxPolarAngle = Math.PI / 2;
             controls.target.set(0, 0.8, 0);
 
-            // 灯光 - FBX 材质需要光照
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            // 灯光 - 柔和自然光照，减少塑料感
+            const hemiLight = new THREE.HemisphereLight(0xffeeb1, 0x080820, 0.6);
+            scene.add(hemiLight);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
             scene.add(ambientLight);
             
-            const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            const dirLight = new THREE.DirectionalLight(0xfff5e6, 0.8);
             dirLight.position.set(5, 10, 5);
             dirLight.castShadow = true;
             scene.add(dirLight);
             
-            const backLight = new THREE.DirectionalLight(0x58a6ff, 0.5);
+            const fillLight = new THREE.DirectionalLight(0xe8f0ff, 0.3);
+            fillLight.position.set(-3, 5, 3);
+            scene.add(fillLight);
+
+            const backLight = new THREE.DirectionalLight(0x58a6ff, 0.3);
             backLight.position.set(-5, 5, -5);
             scene.add(backLight);
 
@@ -1020,6 +1030,19 @@
                         child.receiveShadow = true;
                         if (child.material) {
                             child.material.side = THREE.DoubleSide;
+                            // 减少塑料感：增加粗糙度，降低金属度和高光
+                            if (child.material.roughness !== undefined) {
+                                child.material.roughness = Math.max(child.material.roughness, 0.7);
+                            }
+                            if (child.material.metalness !== undefined) {
+                                child.material.metalness = Math.min(child.material.metalness, 0.1);
+                            }
+                            if (child.material.shininess !== undefined) {
+                                child.material.shininess = Math.min(child.material.shininess, 30);
+                            }
+                            if (child.material.specular) {
+                                child.material.specular.setHex(0x222222);
+                            }
                         }
                     }
                 });
