@@ -890,6 +890,11 @@
             const MAX_ROTATION_RADIANS = 40 * (Math.PI / 180); // 40度，左右各40度，总共80度
             const ROTATION_SMOOTHING_FACTOR = 0.05; // 旋转平滑插值系数
 
+            // 牛仔裤区域参数（基于模型归一化高度 1.5）
+            const PANTS_BOTTOM_Y = 0.10;  // 脚踝位置
+            const PANTS_TOP_Y = 0.55;     // 腰部位置
+            const PANTS_BLEND_EDGE = 0.03; // 过渡区域宽度
+
             const scene = new THREE.Scene();
             scene.background = null;
 
@@ -1096,14 +1101,11 @@
 
                             // 将裤子区域贴图改为牛仔裤效果
                             // 使用 onBeforeCompile 注入自定义着色器，根据世界坐标 Y 值混合牛仔布纹理
-                            child.material.userData.denimTexture = denimTexture;
                             child.material.onBeforeCompile = (shader) => {
-                                // 模型总高度约 1.5，脚底约 0.05
-                                // 裤子区域：脚踝(~0.10) 到 腰部(~0.55)
                                 shader.uniforms.denimMap = { value: denimTexture };
-                                shader.uniforms.pantsBottom = { value: 0.10 };
-                                shader.uniforms.pantsTop = { value: 0.55 };
-                                shader.uniforms.blendEdge = { value: 0.03 };
+                                shader.uniforms.pantsBottom = { value: PANTS_BOTTOM_Y };
+                                shader.uniforms.pantsTop = { value: PANTS_TOP_Y };
+                                shader.uniforms.blendEdge = { value: PANTS_BLEND_EDGE };
 
                                 // 顶点着色器：传递世界坐标 Y（支持骨骼动画）
                                 shader.vertexShader = shader.vertexShader.replace(
