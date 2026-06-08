@@ -870,14 +870,14 @@
         document.head.appendChild(aiStyle);
 
         // 添加 HTML 结构
-        const aiHTML = `<div id="ai-companion-canvas"></div><button id="ai-companion-toggle" title="收起3D人物">▼</button>`;
+        const aiHTML = `<div id="ai-companion-canvas" class="collapsed"></div><button id="ai-companion-toggle" title="展开3D人物">👤</button>`;
         document.body.insertAdjacentHTML('beforeend', aiHTML);
 
         // 收起/展开按钮逻辑
         (function() {
             const toggleBtn = document.getElementById('ai-companion-toggle');
             const companionCanvas = document.getElementById('ai-companion-canvas');
-            let isCollapsed = false;
+            let isCollapsed = true;
 
             toggleBtn.addEventListener('click', function() {
                 isCollapsed = !isCollapsed;
